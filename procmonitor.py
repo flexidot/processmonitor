@@ -4,6 +4,30 @@ import sendgrid
 import logging
 import subprocess
 import configparser
+import os, sys
+from sqlalchemy import Column, ForeignKey, Integer, String, Float
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+Base = declarative_base()
+
+# this is where we will store our log data 
+class TimeSeries(Base):
+	__tablename__ = 'timeseries'
+	time = Column(Float, primary_key=True)
+	memusage = Column(Integer)
+
+engine = create_engine('sqlite:///sqlalchemy_example.db')
+
+Base.metadata.create_all(engine)
+# Bind the engine to the metadata of the Base class so that the
+# declaratives can be accessed through a DBSession instance
+Base.metadata.bind = engine
+ 
+DBSession = sessionmaker(bind=engine)
+session = DBSession()
 
 # read the configuration 
 config = configparser.ConfigParser()
@@ -53,6 +77,10 @@ def check_process(name):
 	if found:
 		mem = p.get_memory_info()[0] / float(2 ** 20)
 		logger.debug("%s running, pid %d since %s, %d MB mem" % (process_name, p.pid, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(p.create_time)), mem))
+
+		t = TimeSeries(time = time.time(), memusage = mem)
+		session.add(t)
+		session.commit()
 		return PROCESS_RUNNING
 	else:
 		return PROCESS_NOT_RUNNING
