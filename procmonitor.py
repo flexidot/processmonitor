@@ -3,42 +3,45 @@ import time
 import sendgrid
 import logging
 import subprocess
+import configparser
 
+# read the configuration 
+config = configparser.ConfigParser()
+config.read('config.json')
+
+# setup loggin
 logger = logging.getLogger('process_monitor')
 logger.setLevel(logging.DEBUG)
 fh = logging.FileHandler('procmon.log')
 fh.setLevel(logging.DEBUG)
-
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
-
 # create console handler with a higher log level
 ch = logging.StreamHandler()
 ch.setLevel(logging.ERROR)
 ch.setFormatter(formatter)
-
 # add the handlers to logger
 logger.addHandler(ch)
 logger.addHandler(fh)
 
+process_name = config['Process']['ProcessName']
+process_start = config["Process"]["ProcessStartCmd"]
 
-process_name = "mysqld"
-process_start = "/etc/init.d/mysql restart"
-
-smtp_host = "smtp.sendgrid.net"
-smtp_port = "587"
-smtp_username = "kamroot"
-smtp_subject = "mail from process monitor"
+smtp_password = config["SendGrid"]["APIKey"]
+smtp_to = config["SendGrid"]["SmtpTo"]
+smtp_from = config["SendGrid"]["SmtpFrom"]
+smtp_cc = config["SendGrid"]["SmtpCc"]
+sg = sendgrid.SendGridClient(smtp_password)
 
 PROCESS_RUNNING = 0
 PROCESS_NOT_RUNNING = 1
 
-sg = sendgrid.SendGridClient(smtp_password)
-
+# given a command to restart a process, it runs taht command
 def restart_process(name, cmd):
 	stdoutdata = subprocess.getoutput(cmd)
 	logger.debug(stdoutdata)
 
+# check if a process is running, given its name. Returns either PROCESS_RUNNING or PROCESS_NOT_RUNNING
 def check_process(name):
 
 	found = 0 
@@ -48,14 +51,17 @@ def check_process(name):
 			break
 
 	if found:
-		logger.debug("%s is running with pid %d started at %s" % (process_name, p.pid, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(p.create_time))))
+		mem = p.get_memory_info()[0] / float(2 ** 20)
+		logger.debug("%s running, pid %d since %s, %d MB mem" % (process_name, p.pid, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(p.create_time)), mem))
 		return PROCESS_RUNNING
 	else:
 		return PROCESS_NOT_RUNNING
 
+# send a message if a process is not running.
 def process_alert(name):
 	message = sendgrid.Mail()
 	message.add_to(smtp_to)
+	message.add_to(smtp_cc)
 	message.set_subject("ALERT: critical process NOT running")
 	message.set_html("%s is NOT running. attempting to restart it." % name)
 	message.set_text("%s is NOT running. attempting to restart it." % name)
