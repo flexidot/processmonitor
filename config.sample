@@ -1,0 +1,32 @@
+{
+    "ProcessName": "ProcessMonitor",
+    "ProcessNames":[
+        {
+                "ProcessName": "sshd",
+                "RestartCommand": "/etc/init.d/mysql restart",
+                "MemoryRestartLevel":"50",
+                "CPURestartLevel":"50",
+                "LogLevel": "Info",
+                "ProcessLogging": "No"
+        },
+        {
+                "ProcessName": "sshd1",
+                "RestartCommand": "/etc/init.d/mysql restart",
+                "MemoryRestartLevel":"50",
+                "CPURestartLevel":"50",
+                "LogLevel": "Info",
+                "ProcessLogging": "Yes"
+        }
+    ],
+    "DefaultLogLevel": "DEBUG",
+    "AllProcessLogging": "Yes",
+    "LogFileName": "procmon.log",
+    "DBLogFile": "sqlite:///sqlalchemy_example.db",
+    "SMTPAlert": "Yes",
+    "SendGridInfo": {
+        "APIKey":"Your Key",
+        "SmtpTo":"Your Email",
+        "SmtpFrom":"Your Email",
+        "SmtpCC":"Your Email"
+    }
+}
