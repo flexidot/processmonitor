@@ -2,7 +2,7 @@ import json
 import psutil
 import time
 import sendgrid
-import logging
+import logging, subprocess
 from models import ProcessTimeSeries
 
 # some defaults
@@ -58,6 +58,10 @@ def restart_process(cmd, config):
 # check if a process needs to be restarted
 def checkProcess(process, processconfig, config):
     logger = config['logger']
+
+    logger.debug("Entering checkProcess for %s with config for %s" % (process.name, processconfig['ProcessName']))
+    assert process.name == processconfig['ProcessName']
+
     # let's find out the criteria to restart this process
     maxcpuusage = int(processconfig['CPURestartLevel'])
     maxmemusage = int(processconfig['MemoryRestartLevel'])
@@ -67,6 +71,7 @@ def checkProcess(process, processconfig, config):
     logger.info("Process %s using %f memory which is %f percent" % (process.name, memused, mempercent))
 
     if mempercent > maxmemusage:
+        logger.error("Process %s using too much memory. restarting it." % process.name)
         restart_process(processconfig['RestartCommand'], config)
     return
 
@@ -81,6 +86,9 @@ def logProcess(p, config):
     for piter in config['ProcessNames']:
         # print (piter['ProcessName'])
         if piter['ProcessName'] == p.name:
+            piter['FoundProcess'] = 'Yes'
+            # now that we have found this process, let's remember that
+            # that way, we can easily find processes that need to be restarted
             break
             print ("*** %s" % piter['ProcessName'])
 
@@ -92,29 +100,22 @@ def logProcess(p, config):
         session.add(t)
         session.commit()
 
-        # now that we have found this process, let's remember that
-        # that way, we can easily find processes that need to be restarted
-        piter['FoundProcess'] = 'Yes'
-
     # check if we need to restart this process
     checkProcess(p, piter, config)
 
     return
 
 def startProcessesNotFound(config):
-    return
-    # main portion of the program
-    tries = 1
-    while util.check_process(process_name) != util.PROCESS_RUNNING and tries <= util.MAX_RESTART_TRIES:
-    	logger.error("%s is NOT running. Attempt no %d to start with %s" % (process_name, tries, process_start))
-    	util.process_alert(process_name)
-    	util.restart_process(process_name, process_start)
-    	tries += 1
-
-    # we have tried restarting the process multiple times now. Let's give up if still not started
-    if util.check_process(process_name) != PROCESS_RUNNING:
-    	# oh man
-    	logger.error("%s is still not running after %d tries. Giving up..." % (process_name, MAX_RESTART_TRIES))
+    logger = config['logger']
+    # go through and find out which processes need to be running but are not running
+    for piter in config['ProcessNames']:
+        try:
+            if piter['FoundProcess'] == 'Yes':
+                logger.info("Found process %s" % piter['ProcessName'])
+        except KeyError:
+            logger.error("%s is NOT running. Attempt to start with %s" % (piter['ProcessName'], piter['RestartCommand']))
+            process_alert(piter['ProcessName'])
+            restart_process(piter['RestartCommand'], config)
 
 def iterateAllProcesses(config):
     logger = config['logger']
