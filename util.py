@@ -75,6 +75,12 @@ def checkProcess(process, processconfig, config):
         restart_process(processconfig['RestartCommand'], config)
     return
 
+def logTimeSeries(p, config):
+    logger = config['logger']
+    session = config['session']
+    t = ProcessTimeSeries(time = p.create_time, pid = p.pid,
+        name = p.name, memusage = p.get_memory_info()[0], cpuusage = 0)
+    session.add(t)
 
 def logProcess(p, config):
     logger = config['logger']
@@ -83,25 +89,30 @@ def logProcess(p, config):
     mem = p.get_memory_info()[0] / float(2 ** 20)
     logger.info('name %s, pid %d, start time %s, mem %d percent, cpu' % (p.name, p.pid, start_time, mem))
 
-    for piter in config['ProcessNames']:
-        # print (piter['ProcessName'])
-        if piter['ProcessName'] == p.name:
-            piter['FoundProcess'] = 'Yes'
-            # now that we have found this process, let's remember that
-            # that way, we can easily find processes that need to be restarted
-            break
-            print ("*** %s" % piter['ProcessName'])
 
     # log this process, if we are required to log all processes or
     # required to log this particular process
-    if config['AllProcessLogging'] == 'Yes' or piter['ProcessLogging'] == 'Yes':
-        t = ProcessTimeSeries(time = p.create_time, pid = p.pid,
-            name = p.name, memusage = p.get_memory_info()[0], cpuusage = 0)
-        session.add(t)
-        session.commit()
+    if config['AllProcessLogging'] == 'Yes':
+        logTimeSeries(p, config)
 
-    # check if we need to restart this process
-    checkProcess(p, piter, config)
+    for piter in config['ProcessNames']:
+        if piter['ProcessName'] == p.name:
+            # now that we have found this process, let's remember that
+            # that way, we can easily find processes that need to be restarted
+            piter['FoundProcess'] = 'Yes'
+            logger.debug("Found config for process %s " % p.name)
+
+            # check if we need to restart this process
+            checkProcess(p, piter, config)
+
+            # log this process if we are required to and if we have not already
+            # logged all processes
+            if config['AllProcessLogging'] == 'No' and  piter['ProcessLogging'] == 'Yes':
+                logTimeSeries(p, config)
+            break
+
+        # save the data base
+        session.commit()
 
     return
 
