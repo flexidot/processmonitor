@@ -10,6 +10,10 @@ PROCESS_RUNNING = 0
 PROCESS_NOT_RUNNING = 1
 MAX_RESTART_TRIES = 3
 
+# reasons for restarts
+RESTART_REASON_TOO_MUCH_MEM = 1
+RESTART_REASON_PROCESS_NOT_FOUND = 2
+
 # reads a default config file of config.json in  the same directory
 # retrns a dict of all the values.
 def readConfig():
@@ -50,7 +54,7 @@ def getSendGrid(config):
     return None
 
 # given a command to restart a process, it runs taht command
-def restart_process(cmd, config):
+def restart_process(name, cmd, config, reason):
     logger = config['logger']
     stdoutdata = subprocess.getoutput(cmd)
     logger.debug(stdoutdata)
@@ -72,7 +76,7 @@ def checkProcess(process, processconfig, config):
 
     if mempercent > maxmemusage:
         logger.error("Process %s using too much memory. restarting it." % process.name)
-        restart_process(processconfig['RestartCommand'], config)
+        restart_process(process.name, processconfig['RestartCommand'], RESTART_REASON_TOO_MUCH_MEM, config)
     return
 
 def logTimeSeries(p, config):
@@ -126,17 +130,7 @@ def startProcessesNotFound(config):
         except KeyError:
             logger.error("%s is NOT running. Attempt to start with %s" % (piter['ProcessName'], piter['RestartCommand']))
             process_alert(piter['ProcessName'])
-            restart_process(piter['RestartCommand'], config)
-
-def iterateAllProcesses(config):
-    logger = config['logger']
-    count = 0
-
-    # iterate of all processes, log them and restart them if necessary
-    for p in psutil.process_iter():
-        count += 1
-        logProcess(p, config)
-    logger.info('found a total of %d processes' % count)
+            restart_process(piter['ProcessName'], piter['RestartCommand'], config, RESTART_REASON_PROCESS_NOT_FOUND)
 
 # send a message if a process is not running.
 def process_alert(name):
