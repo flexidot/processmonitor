@@ -31,3 +31,10 @@ class ProcessTimeSeries(Base):
 	time = Column(Float, unique = False)
 	cpuusage = Column(Integer)
 	memusage = Column(Integer)
+
+class ProcessRestart(Base):
+	__tablename__ = 'processrestart'
+	id = Column(Integer, primary_key = True)
+	name = Column(String)
+	time = Column(Float, unique = False)
+	reason = Column(Integer)

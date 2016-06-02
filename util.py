@@ -3,7 +3,7 @@ import psutil
 import time
 import sendgrid
 import logging, subprocess
-from models import ProcessTimeSeries
+from models import ProcessTimeSeries, ProcessRestart
 
 # some defaults
 PROCESS_RUNNING = 0
@@ -55,9 +55,14 @@ def getSendGrid(config):
 
 # given a command to restart a process, it runs taht command
 def restart_process(name, cmd, config, reason):
+    session = config['session']
     logger = config['logger']
     stdoutdata = subprocess.getoutput(cmd)
     logger.debug(stdoutdata)
+
+    restartlog = ProcessRestart(time = time.time(), name = name,
+        reason = reason)
+    session.add(restartlog)
 
 # check if a process needs to be restarted
 def checkProcess(process, processconfig, config):
@@ -93,7 +98,6 @@ def logProcess(p, config):
     mem = p.get_memory_info()[0] / float(2 ** 20)
     logger.info('name %s, pid %d, start time %s, mem %d percent, cpu' % (p.name, p.pid, start_time, mem))
 
-
     # log this process, if we are required to log all processes or
     # required to log this particular process
     if config['AllProcessLogging'] == 'Yes':
@@ -114,10 +118,6 @@ def logProcess(p, config):
             if config['AllProcessLogging'] == 'No' and  piter['ProcessLogging'] == 'Yes':
                 logTimeSeries(p, config)
             break
-
-        # save the data base
-        session.commit()
-
     return
 
 def startProcessesNotFound(config):

@@ -26,4 +26,7 @@ logger.info('found a total of %d processes' % count)
 # see if any processes need to be started
 util.startProcessesNotFound(config)
 logger.debug("The process took %f seconds to run" % (time.time() - start_time))
+
+# save the data base
+session.commit()
 exit(0)
