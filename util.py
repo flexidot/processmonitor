@@ -1,10 +1,11 @@
 import json
 import psutil
-import time
+import time, datetime
 import sendgrid
 import logging, subprocess
 from models import ProcessTimeSeries, ProcessRestart
 
+VERSION = 0.1
 # some defaults
 PROCESS_RUNNING = 0
 PROCESS_NOT_RUNNING = 1
@@ -17,7 +18,6 @@ RESTART_REASON_PROCESS_NOT_FOUND = 2
 # reads a default config file of config.json in  the same directory
 # retrns a dict of all the values.
 def readConfig():
-    print ("in readconfig")
     json1_file = open('config.json')
     json1_str = json1_file.read()
     json1_data = json.loads(json1_str)
@@ -144,3 +144,16 @@ def process_alert(name):
     message.set_from(smtp_from)
     status, msg = sg.send(message)
     logger.debug("sent alert message to %s with status %s and msg %s" % (smtp_to, status, msg))
+
+def printhelp():
+    print ("This is how to use the program")
+
+def printversion():
+    print ("version: %s" % VERSION)
+
+def printrestarts(config):
+    session = config['session']
+    logger = config['logger']
+    for r in session.query(ProcessRestart).all():
+        #t = datetime.datetime(r.time)
+        print ("Restarted process %s and reason %d at %s" % (r.name, r.reason, r.time))
