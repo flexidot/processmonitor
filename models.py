@@ -19,7 +19,6 @@ def getSession(config):
 	session = DBSession()
 	logger.debug('Returning session')
 	config['session'] = session
-	config['logger'] = logger
 	return session
 
 # this is where we will store our log data
