@@ -44,14 +44,15 @@ def getLogger(config):
     return logger
 
 def getSendGrid(config):
-    logger = config['logger']
-    sg = None
-    if (config['SMTPAlert']) == 'Yes':
-        logger.info('SMTPAlert is enabled')
-        sg = sendgrid.SendGridClient(config['SendGridInfo']['APIKey'])
-    else:
-        logger.info('SMTPAlert is NOT enabled')
-    return None
+	logger = config['logger']
+	sg = None
+	if (config['SMTPAlert']) == 'Yes':
+		logger.info('SMTPAlert is enabled')
+		sg = sendgrid.SendGridClient(config['SendGridInfo']['APIKey'])
+		config['sg'] = sg
+	else:
+		logger.info('SMTPAlert is NOT enabled')
+	return sg
 
 # given a command to restart a process, it runs taht command
 def restart_process(name, cmd, config, reason):
@@ -129,21 +130,25 @@ def startProcessesNotFound(config):
                 logger.info("Found process %s" % piter['ProcessName'])
         except KeyError:
             logger.error("%s is NOT running. Attempt to start with %s" % (piter['ProcessName'], piter['RestartCommand']))
-            process_alert(piter['ProcessName'])
+            process_alert(piter['ProcessName'], config)
             restart_process(piter['ProcessName'], piter['RestartCommand'], config, RESTART_REASON_PROCESS_NOT_FOUND)
 
 # send a message if a process is not running.
-def process_alert(name):
-    return 0
-    message = sendgrid.Mail()
-    message.add_to(smtp_to)
-    message.add_to(smtp_cc)
-    message.set_subject("ALERT: critical process NOT running")
-    message.set_html("%s is NOT running. attempting to restart it." % name)
-    message.set_text("%s is NOT running. attempting to restart it." % name)
-    message.set_from(smtp_from)
-    status, msg = sg.send(message)
-    logger.debug("sent alert message to %s with status %s and msg %s" % (smtp_to, status, msg))
+def process_alert(name, config):
+	sg = config['sg']
+	logger = config['logger']
+	message = sendgrid.Mail()
+	smtp_to = config['SendGridInfo']['SmtpTo']
+	smtp_cc = config['SendGridInfo']['SmtpCC']
+	smtp_from = config['SendGridInfo']['SmtpFrom']
+	message.add_to(smtp_to)
+	message.add_to(smtp_cc)
+	message.set_subject("ALERT: critical process NOT running")
+	message.set_html("%s is NOT running. attempting to restart it." % name)
+	message.set_text("%s is NOT running. attempting to restart it." % name)
+	message.set_from(smtp_from)
+	status, msg = sg.send(message)
+	logger.debug("sent alert message to %s with status %s and msg %s" % (smtp_to, status, msg))
 
 def printhelp():
     print ("This is how to use the program")
