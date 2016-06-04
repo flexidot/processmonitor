@@ -5,7 +5,7 @@ import sendgrid
 import logging, subprocess
 from models import ProcessTimeSeries, ProcessRestart
 
-VERSION = 0.11
+VERSION = 0.12
 # some defaults
 PROCESS_RUNNING = 0
 PROCESS_NOT_RUNNING = 1
@@ -167,3 +167,14 @@ def printrestarts(config):
             #datetime.datetime.fromtimestamp(r.time).strftime("%Y-%m-%d %H:%M:%S")))
             datetime.datetime.fromtimestamp(r.time).strftime("%a, %d %b %Y %H:%M:%S -0800")))
             #strftime("%a, %d %b %Y %H:%M:%S +0000",t)))
+
+def printtimeseries(config):
+    session = config['session']
+    logger = config['logger']
+    for r in session.query(ProcessTimeSeries).all():
+        #t = datetime.datetime(r.time)
+        #t = r.time
+        #t = time.time(r.time)
+        print ("Process %s, started at %s, pid %d, mem %d" %
+            (r.name,
+            datetime.datetime.fromtimestamp(r.time).strftime("%a, %d %b %Y %H:%M:%S -0800"), r.pid, r.memusage))

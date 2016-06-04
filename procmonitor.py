@@ -12,7 +12,7 @@ session = getSession(config)
 
 # parse arguments
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "hvr", ["--restarts"])
+    opts, args = getopt.getopt(sys.argv[1:], "hvrt", ["--restarts"])
 except getopt.GetoptError:
     print ("Not enough options")
     sys.exit(2)
@@ -23,6 +23,8 @@ for opt, arg in opts:
         sys.exit(0)
     elif opt in ("-r", "--restarts"):
         util.printrestarts(config)
+    elif opt in ("-t", "--time"):
+        util.printtimeseries(config)
     elif opt == "-v":
         util.printversion()
 
