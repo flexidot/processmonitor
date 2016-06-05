@@ -152,11 +152,23 @@ def printrestarts(config):
         print ("Restarted process %s and reason %d at %s" % (r.name, r.reason,
             datetime.datetime.fromtimestamp(r.time).strftime("%a, %d %b %Y %H:%M:%S -0800")))
 
+def formatmem(m):
+    if m < 1024:
+        return m
+    elif  m < 1024*1024:
+        return str(round(m/1024,2)) + "KB"
+    elif  m < 1024*1024*1024:
+        return str(round(m/(1024*1024),2)) + 'MB'
+    else:
+        return str(round(m/(1024*1024*1024),2)) + 'GB'
+
 def printtimeseries(config):
     logger = config['logger']
-    for process in config['db'].getProcessTimeSeries():
-        processid = process.processID
-        print ("Process %s, started at %s, pid %s, mem %d" %
-            (processid.name,
-            datetime.datetime.fromtimestamp(processid.timestarted).strftime("%a, %d %b %Y %H:%M:%S -0800"),
-            processid.pid, process.memusage))
+
+    for processid in config['db'].getProcessIDs():
+        print("Process %s, pid %d, started at %s" % (processid.name, processid.pid,
+        datetime.datetime.fromtimestamp(processid.timestarted).strftime("%a, %d %b %Y %H:%M:%S -0000")))
+        for process in processid.processtimeseries:
+            mem = formatmem(process.memusage)
+            print("\tmemusage %s at %s" % (mem,
+                datetime.datetime.fromtimestamp(process.time).strftime("%a, %d %b %Y %H:%M:%S -0000")))

@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, datetime, time
 from sqlalchemy import Column, ForeignKey, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -75,14 +75,15 @@ class Database():
 			if pg.pguid == pguid:
 				self.config['logger'].debug('Found pguid for %s' % pguid)
 				return
-		pg = ProcessID(pguid = pguid, name = process.name, pid = process.name,
+		pg = ProcessID(pguid = pguid, name = process.name, pid = process.pid,
 			timestarted = process.create_time)
 		self.session.add(pg)
 
 	def logTimeSeries(self, p, config):
 		logger = config['logger']
 		pguid = self.getPGUID(p)
-		t = ProcessTimeSeries(time = p.create_time,
+		tm = time.mktime(datetime.datetime.utcnow().timetuple())
+		t = ProcessTimeSeries(time = tm,
 			memusage = p.get_memory_info()[0], cpuusage = 0)
 		t.pguid = pguid
 		self.session.add(t)
@@ -99,7 +100,10 @@ class Database():
 		return self.session.query(ProcessRestart).all()
 
 	def getProcessTimeSeries(self):
-		return self.session.query(ProcessTimeSeries).all()
+			return self.session.query(ProcessTimeSeries).all()
+
+	def getProcessIDs(self):
+		return self.session.query(ProcessID).all()
 
 	def finalize(self):
 		self.session.commit()

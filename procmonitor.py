@@ -24,10 +24,13 @@ for opt, arg in opts:
         sys.exit(0)
     elif opt in ("-r", "--restarts"):
         util.printrestarts(config)
+        sys.exit(0)
     elif opt in ("-t", "--time"):
         util.printtimeseries(config)
+        sys.exit(0)
     elif opt == "-v":
         util.printversion()
+        sys.exit(0)
 
 # go through all the processes and see if they need logging or restarting
 count = 0
