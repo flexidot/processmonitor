@@ -168,7 +168,23 @@ def printtimeseries(config):
     for processid in config['db'].getProcessIDs():
         print("Process %s, pid %d, started at %s" % (processid.name, processid.pid,
         datetime.datetime.fromtimestamp(processid.timestarted).strftime("%a, %d %b %Y %H:%M:%S -0000")))
+
+        startedmem = 0
+        count = 0
+        totalmem = 0
         for process in processid.processtimeseries:
+            if startedmem == 0:
+                startedmem = process.memusage
+            count += 1
+            totalmem += process.memusage
             mem = formatmem(process.memusage)
-            print("\tmemusage %s at %s" % (mem,
-                datetime.datetime.fromtimestamp(process.time).strftime("%a, %d %b %Y %H:%M:%S -0000")))
+            #print("\tmemusage %s at %s" % (mem,
+            #    datetime.datetime.fromtimestamp(process.time).strftime("%a, %d %b %Y %H:%M:%S -0000")))
+
+        avgmem = totalmem / count
+        #print ("\ttotal %d, count %d, avg %d" % (totalmem, count, avgmem))
+        startedmem = formatmem(startedmem)
+        avgmem = formatmem(avgmem)
+        currentmem = formatmem(process.memusage)
+
+        print("\tcurrent %s, avg %s, initial %s" % (currentmem, startedmem, avgmem))
