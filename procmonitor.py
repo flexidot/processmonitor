@@ -1,6 +1,7 @@
 import sendgrid
 import util, configparser, getopt, subprocess, sys, time, psutil
-from models import ProcessTimeSeries, getSession
+#from models import ProcessTimeSeries
+from models import Database
 
 start_time = time.time()
 
@@ -8,7 +9,7 @@ start_time = time.time()
 config = util.readConfig()
 logger = util.getLogger(config)
 sg = util.getSendGrid(config)
-session = getSession(config)
+db = Database(config)
 
 # parse arguments
 try:
@@ -41,6 +42,5 @@ logger.info('found a total of %d processes' % count)
 util.startProcessesNotFound(config)
 logger.debug("The process took %f seconds to run" % (time.time() - start_time))
 
-# save the data base
-session.commit()
+db.finalize()
 exit(0)

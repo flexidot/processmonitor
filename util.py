@@ -3,9 +3,9 @@ import psutil
 import time, datetime
 import sendgrid
 import logging, subprocess
-from models import ProcessTimeSeries, ProcessRestart
+from models import Database
 
-VERSION = 0.12
+VERSION = 0.20
 # some defaults
 PROCESS_RUNNING = 0
 PROCESS_NOT_RUNNING = 1
@@ -56,14 +56,39 @@ def getSendGrid(config):
 
 # given a command to restart a process, it runs taht command
 def restart_process(name, cmd, config, reason):
-    session = config['session']
     logger = config['logger']
     stdoutdata = subprocess.getoutput(cmd)
     logger.debug(stdoutdata)
-
-    restartlog = ProcessRestart(time = time.time(), name = name,
+    config['db'].addRestartEvent(config, time = time.time(), name = name,
         reason = reason)
-    session.add(restartlog)
+
+def logProcess(p, config):
+    logger = config['logger']
+    start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(p.create_time))
+    mem = p.get_memory_info()[0] / float(2 ** 20)
+    logger.info('name %s, pid %d, start time %s, mem %d percent, cpu' % (p.name, p.pid, start_time, mem))
+
+    # log this process, if we are required to log all processes or
+    # required to log this particular process
+    if config['AllProcessLogging'] == 'Yes':
+        config['db'].logTimeSeries(p, config)
+
+        for piter in config['ProcessNames']:
+            if piter['ProcessName'] == p.name:
+                # now that we have found this process, let's remember that
+                # that way, we can easily find processes that need to be restarted
+                piter['FoundProcess'] = 'Yes'
+                logger.debug("Found config for process %s " % p.name)
+
+                # check if we need to restart this process
+                checkProcess(p, piter, config)
+
+                # log this process if we are required to and if we have not already
+                # logged all processes
+                if config['AllProcessLogging'] == 'No' and  piter['ProcessLogging'] == 'Yes':
+                    logTimeSeries(p, config)
+                    break
+                    return
 
 # check if a process needs to be restarted
 def checkProcess(process, processconfig, config):
@@ -83,42 +108,6 @@ def checkProcess(process, processconfig, config):
     if mempercent > maxmemusage:
         logger.error("Process %s using too much memory. restarting it." % process.name)
         restart_process(process.name, processconfig['RestartCommand'], RESTART_REASON_TOO_MUCH_MEM, config)
-    return
-
-def logTimeSeries(p, config):
-    logger = config['logger']
-    session = config['session']
-    t = ProcessTimeSeries(time = p.create_time, pid = p.pid,
-        name = p.name, memusage = p.get_memory_info()[0], cpuusage = 0)
-    session.add(t)
-
-def logProcess(p, config):
-    logger = config['logger']
-    session = config['session']
-    start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(p.create_time))
-    mem = p.get_memory_info()[0] / float(2 ** 20)
-    logger.info('name %s, pid %d, start time %s, mem %d percent, cpu' % (p.name, p.pid, start_time, mem))
-
-    # log this process, if we are required to log all processes or
-    # required to log this particular process
-    if config['AllProcessLogging'] == 'Yes':
-        logTimeSeries(p, config)
-
-    for piter in config['ProcessNames']:
-        if piter['ProcessName'] == p.name:
-            # now that we have found this process, let's remember that
-            # that way, we can easily find processes that need to be restarted
-            piter['FoundProcess'] = 'Yes'
-            logger.debug("Found config for process %s " % p.name)
-
-            # check if we need to restart this process
-            checkProcess(p, piter, config)
-
-            # log this process if we are required to and if we have not already
-            # logged all processes
-            if config['AllProcessLogging'] == 'No' and  piter['ProcessLogging'] == 'Yes':
-                logTimeSeries(p, config)
-            break
     return
 
 def startProcessesNotFound(config):
@@ -157,24 +146,17 @@ def printversion():
     print ("version: %s" % VERSION)
 
 def printrestarts(config):
-    session = config['session']
     logger = config['logger']
-    for r in session.query(ProcessRestart).all():
-        #t = datetime.datetime(r.time)
-        #t = r.time
-        #t = time.time(r.time)
+
+    for r in config['db'].getRestarts():
         print ("Restarted process %s and reason %d at %s" % (r.name, r.reason,
-            #datetime.datetime.fromtimestamp(r.time).strftime("%Y-%m-%d %H:%M:%S")))
             datetime.datetime.fromtimestamp(r.time).strftime("%a, %d %b %Y %H:%M:%S -0800")))
-            #strftime("%a, %d %b %Y %H:%M:%S +0000",t)))
 
 def printtimeseries(config):
-    session = config['session']
     logger = config['logger']
-    for r in session.query(ProcessTimeSeries).all():
-        #t = datetime.datetime(r.time)
-        #t = r.time
-        #t = time.time(r.time)
-        print ("Process %s, started at %s, pid %d, mem %d" %
-            (r.name,
-            datetime.datetime.fromtimestamp(r.time).strftime("%a, %d %b %Y %H:%M:%S -0800"), r.pid, r.memusage))
+    for process in config['db'].getProcessTimeSeries():
+        processid = process.processID
+        print ("Process %s, started at %s, pid %s, mem %d" %
+            (processid.name,
+            datetime.datetime.fromtimestamp(processid.timestarted).strftime("%a, %d %b %Y %H:%M:%S -0800"),
+            processid.pid, process.memusage))
