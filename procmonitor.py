@@ -1,6 +1,7 @@
 import sendgrid
 import util, configparser, getopt, subprocess, sys, time, psutil
-from models import ProcessTimeSeries, getSession
+#from models import ProcessTimeSeries
+from models import Database
 
 start_time = time.time()
 
@@ -8,7 +9,7 @@ start_time = time.time()
 config = util.readConfig()
 logger = util.getLogger(config)
 sg = util.getSendGrid(config)
-session = getSession(config)
+db = Database(config)
 
 # parse arguments
 try:
@@ -23,10 +24,13 @@ for opt, arg in opts:
         sys.exit(0)
     elif opt in ("-r", "--restarts"):
         util.printrestarts(config)
+        sys.exit(0)
     elif opt in ("-t", "--time"):
         util.printtimeseries(config)
+        sys.exit(0)
     elif opt == "-v":
         util.printversion()
+        sys.exit(0)
 
 # go through all the processes and see if they need logging or restarting
 count = 0
@@ -41,6 +45,5 @@ logger.info('found a total of %d processes' % count)
 util.startProcessesNotFound(config)
 logger.debug("The process took %f seconds to run" % (time.time() - start_time))
 
-# save the data base
-session.commit()
+db.finalize()
 exit(0)
